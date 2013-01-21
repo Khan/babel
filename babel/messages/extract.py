@@ -64,6 +64,37 @@ def _strip_comment_tags(comments, tags):
     comments[:] = map(_strip, comments)
 
 
+def parse_keywords(strings=[]):
+    """Parse keywords specifications from the given list of strings.
+
+    >>> kw = parse_keywords(['_', 'dgettext:2', 'dngettext:2,3', 'pgettext:1c,2']).items()
+    >>> kw.sort()
+    >>> for keyword, indices in kw:
+    ...     print (keyword, indices)
+    ('_', None)
+    ('dgettext', (2,))
+    ('dngettext', (2, 3))
+    ('pgettext', ((1, 'c'), 2))
+    """
+    keywords = {}
+    for string in strings:
+        if ':' in string:
+            funcname, indices = string.split(':')
+        else:
+            funcname, indices = string, None
+        if funcname not in keywords:
+            if indices:
+                inds = []
+                for x in indices.split(','):
+                    if x[-1] == 'c':
+                        inds.append((int(x[:-1]), 'c'))
+                    else:
+                        inds.append(int(x))
+                indices = tuple(inds)
+            keywords[funcname] = indices
+    return keywords
+
+
 def extract_from_dir(dirname=os.getcwd(), method_map=DEFAULT_MAPPING,
                      options_map=None, keywords=DEFAULT_KEYWORDS,
                      comment_tags=(), callback=None, strip_comment_tags=False):
@@ -270,8 +301,20 @@ def extract(method, fileobj, keywords=DEFAULT_KEYWORDS, comment_tags=(),
     if func is None:
         raise ValueError('Unknown extraction method %r' % method)
 
-    results = func(fileobj, keywords.keys(), comment_tags,
-                   options=options or {})
+    options = options or {}
+    # KA addition: The -k option ('-k = foo:1 bar baz:2c') is
+    # equivalent to having passed -k 'something' on the commandline,
+    # but just for this one file-type.  Likewise with -c ('-c =
+    # NOTE:').  You can only add one comment-tag in this way, but as
+    # many keywords as you want (we assume keywords don't have spaces
+    # in them, so spaces separate unique -k entries).
+    if '-k' in options:
+        keywords = keywords.copy()
+        keywords.update(parse_keywords(options['-k'].split(' ')))
+    if '-c' in options:
+        comment_tags = tuple(list(comment_tags) + [options['-c']])
+
+    results = func(fileobj, keywords.keys(), comment_tags, options=options)
 
     for lineno, funcname, messages, comments in results:
         if funcname:

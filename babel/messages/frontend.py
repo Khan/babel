@@ -34,7 +34,7 @@ from babel import Locale, localedata
 from babel.core import UnknownLocaleError
 from babel.messages.catalog import Catalog
 from babel.messages.extract import extract_from_dir, DEFAULT_KEYWORDS, \
-                                   DEFAULT_MAPPING
+                                   DEFAULT_MAPPING, parse_keywords
 from babel.messages.mofile import write_mo
 from babel.messages.pofile import read_po, write_po
 from babel.util import odict, LOCALTZ
@@ -1230,36 +1230,6 @@ def parse_mapping(fileobj, filename=None):
             method_map[idx] = (pattern, method)
 
     return (method_map, options_map)
-
-def parse_keywords(strings=[]):
-    """Parse keywords specifications from the given list of strings.
-
-    >>> kw = parse_keywords(['_', 'dgettext:2', 'dngettext:2,3', 'pgettext:1c,2']).items()
-    >>> kw.sort()
-    >>> for keyword, indices in kw:
-    ...     print (keyword, indices)
-    ('_', None)
-    ('dgettext', (2,))
-    ('dngettext', (2, 3))
-    ('pgettext', ((1, 'c'), 2))
-    """
-    keywords = {}
-    for string in strings:
-        if ':' in string:
-            funcname, indices = string.split(':')
-        else:
-            funcname, indices = string, None
-        if funcname not in keywords:
-            if indices:
-                inds = []
-                for x in indices.split(','):
-                    if x[-1] == 'c':
-                        inds.append((int(x[:-1]), 'c'))
-                    else:
-                        inds.append(int(x))
-                indices = tuple(inds)
-            keywords[funcname] = indices
-    return keywords
 
 
 if __name__ == '__main__':

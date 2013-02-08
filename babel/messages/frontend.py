@@ -864,9 +864,6 @@ class CommandLineInterface(object):
 
         keywords = DEFAULT_KEYWORDS.copy()
         if options.no_default_keywords:
-            if not options.keywords:
-                parser.error('you must specify new keywords if you disable the '
-                             'default ones')
             keywords = {}
         if options.keywords:
             keywords.update(parse_keywords(options.keywords))

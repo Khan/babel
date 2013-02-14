@@ -58,12 +58,13 @@ class Token(tuple):
     """Represents a token as returned by `tokenize`."""
     __slots__ = ()
 
-    def __new__(cls, type, value, lineno):
-        return tuple.__new__(cls, (type, value, lineno))
+    def __new__(cls, type, value, lineno, match):
+        return tuple.__new__(cls, (type, value, lineno, match))
 
     type = property(itemgetter(0))
     value = property(itemgetter(1))
     lineno = property(itemgetter(2))
+    match = property(itemgetter(3))
 
 
 def indicates_division(token):
@@ -167,7 +168,7 @@ def tokenize(source):
 
         token_value = match.group()
         if token_type is not None:
-            token = Token(token_type, token_value, lineno)
+            token = Token(token_type, token_value, lineno, match)
             may_divide = indicates_division(token)
             yield token
         lineno += len(line_re.findall(token_value))

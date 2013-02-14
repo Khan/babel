@@ -502,6 +502,7 @@ def extract_javascript(fileobj, keywords, comment_tags, options):
     """
     from babel.messages.jslexer import tokenize, unquote_string
     funcname = message_lineno = None
+    message_start = message_end = None
     messages = []
     last_argument = None
     translator_comments = []
@@ -514,6 +515,7 @@ def extract_javascript(fileobj, keywords, comment_tags, options):
         if token.type == 'operator' and token.value == '(':
             if funcname:
                 message_lineno = token.lineno
+                message_start = token.match.start()
                 call_stack += 1
 
         elif call_stack == -1 and token.type == 'linecomment':
@@ -562,7 +564,8 @@ def extract_javascript(fileobj, keywords, comment_tags, options):
 
                 if messages is not None:
                     yield (message_lineno, funcname, messages,
-                           [comment[1] for comment in translator_comments])
+                           [comment[1] for comment in translator_comments],
+                           message_start, message_end)
 
                 funcname = message_lineno = last_argument = None
                 concatenate_next = False
@@ -571,6 +574,7 @@ def extract_javascript(fileobj, keywords, comment_tags, options):
                 call_stack = -1
 
             elif token.type == 'string':
+                message_end = token.match.end()
                 new_value = unquote_string(token.value)
                 if concatenate_next:
                     last_argument = (last_argument or '') + new_value

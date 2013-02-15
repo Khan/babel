@@ -500,11 +500,13 @@ def extract_javascript(fileobj, keywords, comment_tags, options):
                          in the results
     :param options: a dictionary of additional options (optional)
     :return: an iterator over ``(lineno, funcname, message, comments)`` tuples
+             or ``(message, start, end)`` if options.messages_only is True
     :rtype: ``iterator``
     """
     from babel.messages.jslexer import tokenize, unquote_string
     funcname = message_lineno = None
     message_start = message_end = None
+    messages_only = options.get('messages_only', False)
     messages = []
     last_argument = None
     translator_comments = []
@@ -565,17 +567,21 @@ def extract_javascript(fileobj, keywords, comment_tags, options):
                     translator_comments = []
 
                 if messages is not None:
-                    yield (message_lineno, funcname, messages,
-                           [comment[1] for comment in translator_comments],
-                           message_start, message_end)
+                    if messages_only:
+                        yield (messages, message_start, message_end)
+                    else:
+                        yield (message_lineno, funcname, messages,
+                           [comment[1] for comment in translator_comments])
 
                 funcname = message_lineno = last_argument = None
+                message_start = message_end = None
                 concatenate_next = False
                 translator_comments = []
                 messages = []
                 call_stack = -1
 
             elif token.type == 'string':
+                # End position is continually updated after every message
                 message_end = token.match.end()
                 new_value = unquote_string(token.value)
                 if concatenate_next:

@@ -499,11 +499,38 @@ def extract_javascript(fileobj, keywords, comment_tags, options):
     :param comment_tags: a list of translator tags to search for and include
                          in the results
     :param options: a dictionary of additional options (optional)
+                    set the option of 'messages_only' to True and this method
+                    will yield a tuple of messages and their file position
+
+    If 'messages_only' is set to True then the return type is a tuple holding
+    ``(messages, start, end)``. This represents a list of message strings and
+    two number positions of those strings in the file. The positions in the
+    file are absolute positions of the text in the file. For example:
+
+        $._("Hello.")
+            ^......^ - Message position
+
+    Will yield: ``(["Hello."], 4, 11)``. And for pluralization:
+
+        $._("Singular %s.", "Plural %s.", num)
+            ^..........................^ - Message position
+
+    Will yield: ``(["Singular %s.", "Plural %s."], 4, 31)``. This even works
+    for more complicated examples:
+
+              v.............
+        $._(  "Hello %s " +
+            "How are you doing?"  , "John");
+        .......................^ - Message position.
+
+    This will yield: ``(["Hello %s How are you doing?"], 6, 43)``.
+
+    All of this makes it easy to replace those string messages with new
+    messages since you can quickly replace all of the text between the start
+    and end positions with your modified text.
     """
     from babel.messages.jslexer import tokenize, unquote_string
     funcname = message_lineno = None
-    message_start = message_end = None
-    messages_only = options.get('messages_only', False)
     messages = []
     last_argument = None
     translator_comments = []
@@ -512,11 +539,18 @@ def extract_javascript(fileobj, keywords, comment_tags, options):
     last_token = None
     call_stack = -1
 
+    # NOTE(jeresig): Custom functionality added.
+    # setting the option of 'messages_only' to True and this method
+    # will yield a tuple of messages and their file position
+    messages_only = options.get('messages_only', False)
+
+    if messages_only:
+        messages_start = messages_end = None
+
     for token in tokenize(fileobj.read().decode(encoding)):
         if token.type == 'operator' and token.value == '(':
             if funcname:
                 message_lineno = token.lineno
-                message_start = token.match.start()
                 call_stack += 1
 
         elif call_stack == -1 and token.type == 'linecomment':
@@ -564,22 +598,37 @@ def extract_javascript(fileobj, keywords, comment_tags, options):
                     translator_comments = []
 
                 if messages is not None:
+                    # NOTE(jeresig): Custom functionality added.
                     if messages_only:
-                        yield (messages, message_start, message_end)
+                        yield (messages, messages_start, messages_end)
+                        messages_start = messages_end = None
                     else:
                         yield (message_lineno, funcname, messages,
                            [comment[1] for comment in translator_comments])
 
                 funcname = message_lineno = last_argument = None
-                message_start = message_end = None
                 concatenate_next = False
                 translator_comments = []
                 messages = []
                 call_stack = -1
 
             elif token.type == 'string':
-                # End position is continually updated after every message
-                message_end = token.match.end()
+                # NOTE(jeresig): Custom functionality added.
+                # We've encountered a string, strings hold messages to be
+                # translated. We use this opportunity to update the
+                # messages_start and messages_end variables which keep track of
+                # the positions of the messages in the file.
+                if messages_only:
+                    # Only update the messages_start position when we're at the
+                    # first message.
+                    if messages_start is None:
+                        messages_start = token.match.start()
+
+                    # End position is continually updated after every message
+                    # (making it so that the end of the last message is the
+                    # last reported end position)
+                    messages_end = token.match.end()
+
                 new_value = unquote_string(token.value)
                 if concatenate_next:
                     last_argument = (last_argument or '') + new_value

@@ -515,15 +515,16 @@ def extract_javascript(fileobj, keywords, comment_tags, options):
 
     Will yield: ``(["Hello."], 4, 11)``. And for pluralization:
 
-        $._("Singular %s.", "Plural %s.", num)
-            ^..........................^ - Message position
+        $.ngettext("Singular %s.", "Plural %s.", num)
+                   ^..........................^ - Message position
 
-    Will yield: ``(["Singular %s.", "Plural %s."], 4, 31)``. This even works
-    for more complicated examples:
+    Will yield: ``(["Singular %s.", "Plural %s."], 12, 39)``. Note that the
+    position of the start and end even transcend the comma and whitespace
+    inbetween the two strings. This even works for more complicated examples:
 
               v.............
         $._(  "Hello %s " +
-            "How are you doing?"  , "John");
+            "How are you doing?"  , name);
         .......................^ - Message position.
 
     This will yield: ``(["Hello %s How are you doing?"], 6, 43)``.

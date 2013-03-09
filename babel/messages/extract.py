@@ -171,6 +171,22 @@ def extract_from_dir(dirname=None, method_map=DEFAULT_MAPPING,
                 dirnames.remove(subdir)
         dirnames.sort()
         filenames.sort()
+
+        # NOTE(csilvers): added for Khan Academy.
+        # Check if entire directories are marked ignore, and skip if
+        # so.  Due to how complex pattern-matching can be, we only
+        # process method-map up until the first non-ignore directive:
+        # we don't want to guess how an 'ignore' for a directory
+        # interacts with a previous non-ignore directive!
+        for i in xrange(len(dirnames) - 1, -1, -1):  # backwards eases deletion
+            for pattern, method in method_map:
+                if method != 'ignore':
+                    break
+                if (os.path.basename(pattern) == '**'
+                    and pathmatch(os.path.dirname(pattern), dirnames[i])):
+                    del dirnames[i]
+                    break
+
         for filename in filenames:
             filename = relpath(
                 os.path.join(root, filename).replace(os.sep, '/'),

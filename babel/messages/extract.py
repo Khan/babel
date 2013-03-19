@@ -15,7 +15,8 @@
 
 This module defines an extensible system for collecting localizable message
 strings from a variety of sources. A native extractor for Python source files
-is builtin, extractors for other sources can be added using very simple plugins.
+is builtin, extractors for other sources can be added using very simple
+plugins.
 
 The main entry points into the extraction functionality are the functions
 `extract_from_dir` and `extract_from_file`.
@@ -67,7 +68,8 @@ def _strip_comment_tags(comments, tags):
 def parse_keywords(strings=[]):
     """Parse keywords specifications from the given list of strings.
 
-    >>> kw = parse_keywords(['_', 'dgettext:2', 'dngettext:2,3', 'pgettext:1c,2']).items()
+    >>> kw = parse_keywords(['_', 'dgettext:2', 'dngettext:2,3',
+        'pgettext:1c,2']).items()
     >>> kw.sort()
     >>> for keyword, indices in kw:
     ...     print (keyword, indices)
@@ -162,8 +164,8 @@ def extract_from_dir(dirname=os.getcwd(), method_map=DEFAULT_MAPPING,
                      positional arguments, in that order
     :param strip_comment_tags: a flag that if set to `True` causes all comment
                                tags to be removed from the collected comments.
-    :return: an iterator over ``(filename, lineno, funcname, message, context)``
-             tuples
+    :return: an iterator over
+             ``(filename, lineno, funcname, message, context)`` tuples
     :rtype: ``iterator``
     :see: `pathmatch`
     """
@@ -209,11 +211,10 @@ def extract_from_dir(dirname=os.getcwd(), method_map=DEFAULT_MAPPING,
                         callback(filename, method, options)
                     for lineno, message, comments, context in \
                           extract_from_file(method, filepath,
-                                            keywords=keywords,
-                                            comment_tags=comment_tags,
-                                            options=options,
-                                            strip_comment_tags=
-                                                strip_comment_tags):
+                                        keywords=keywords,
+                                        comment_tags=comment_tags,
+                                        options=options,
+                                        strip_comment_tags=strip_comment_tags):
                         yield filename, lineno, message, comments, context
                     break
 
@@ -257,8 +258,8 @@ def extract(method, fileobj, keywords=DEFAULT_KEYWORDS, comment_tags=(),
 
         ``(lineno, message, comments)``
 
-    The implementation dispatches the actual extraction to plugins, based on the
-    value of the ``method`` parameter.
+    The implementation dispatches the actual extraction to plugins, based on
+    the value of the ``method`` parameter.
 
     >>> source = '''# foo module
     ... def run(argv):
@@ -480,7 +481,7 @@ def extract_python(fileobj, keywords, comment_tags, options):
                 # https://sourceforge.net/tracker/?func=detail&atid=355470&
                 # aid=617979&group_id=5470
                 value = eval('# coding=%s\n%s' % (encoding, value),
-                             {'__builtins__':{}}, {})
+                             {'__builtins__': {}}, {})
                 if isinstance(value, str):
                     value = value.decode(encoding)
                 buf.append(value)
@@ -496,7 +497,7 @@ def extract_python(fileobj, keywords, comment_tags, options):
                     # Let's increase the last comment's lineno in order
                     # for the comment to still be a valid one
                     old_lineno, old_comment = translator_comments.pop()
-                    translator_comments.append((old_lineno+1, old_comment))
+                    translator_comments.append((old_lineno + 1, old_comment))
         elif call_stack > 0 and tok == OP and value == ')':
             call_stack -= 1
         elif funcname and call_stack == -1:
@@ -568,7 +569,11 @@ def extract_javascript(fileobj, keywords, comment_tags, options):
         messages_start = messages_end = None
 
     for token in tokenize(fileobj.read().decode(encoding)):
-        if token.type == 'operator' and token.value == '(':
+        # NOTE(jeresig): Made it so that ( or [ or { all increase
+        # the call stack (to avoid capturing things contained within
+        # these particular constructs).
+        if token.type == 'operator' and (token.value == '(' \
+            or token.value == '[' or token.value == '{'):
             if funcname:
                 message_lineno = token.lineno
                 call_stack += 1
@@ -603,6 +608,12 @@ def extract_javascript(fileobj, keywords, comment_tags, options):
         elif funcname and call_stack == 0:
             if token.type == 'operator' and token.value == ')':
                 if last_argument is not None:
+                    # NOTE(jeresig): Custom functionality added.
+                    if messages_only:
+                        # End position is continually updated after every
+                        # message (making it so that the end of the last
+                        # message is the last reported end position)
+                        messages_end = token.match.start()
                     messages.append(last_argument)
                 if len(messages) > 1:
                     messages = tuple(messages)
@@ -638,16 +649,10 @@ def extract_javascript(fileobj, keywords, comment_tags, options):
                 # translated. We use this opportunity to update the
                 # messages_start and messages_end variables which keep track of
                 # the positions of the messages in the file.
-                if messages_only:
+                if messages_only and messages_start is None:
                     # Only update the messages_start position when we're at the
                     # first message.
-                    if messages_start is None:
-                        messages_start = token.match.start()
-
-                    # End position is continually updated after every message
-                    # (making it so that the end of the last message is the
-                    # last reported end position)
-                    messages_end = token.match.end()
+                    messages_start = token.match.start()
 
                 new_value = unquote_string(token.value)
                 if concatenate_next:
@@ -659,6 +664,12 @@ def extract_javascript(fileobj, keywords, comment_tags, options):
             elif token.type == 'operator':
                 if token.value == ',':
                     if last_argument is not None:
+                        # NOTE(jeresig): Custom functionality added.
+                        if messages_only:
+                            # End position is continually updated after every
+                            # message (making it so that the end of the last
+                            # message is the last reported end position)
+                            messages_end = token.match.start()
                         messages.append(last_argument)
                         last_argument = None
                     else:
@@ -666,9 +677,12 @@ def extract_javascript(fileobj, keywords, comment_tags, options):
                     concatenate_next = False
                 elif token.value == '+':
                     concatenate_next = True
-
+        # NOTE(jeresig): Made it so that ) or ] or } all decrease
+        # the call stack (to avoid capturing things contained within
+        # these particular constructs).
         elif call_stack > 0 and token.type == 'operator' \
-             and token.value == ')':
+             and (token.value == ')' \
+             or token.value == ']' or token.value == '}'):
             call_stack -= 1
 
         elif funcname and call_stack == -1:

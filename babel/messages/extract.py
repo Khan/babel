@@ -568,8 +568,7 @@ def extract_javascript(fileobj, keywords, comment_tags, options):
         # NOTE(jeresig): Made it so that ( or [ or { all increase
         # the call stack (to avoid capturing things contained within
         # these particular constructs).
-        if token.type == 'operator' and (token.value == '(' \
-            or token.value == '[' or token.value == '{'):
+        if token.type == 'operator' and token.value in ('{', '[', '('):
             if funcname:
                 message_lineno = token.lineno
                 call_stack += 1
@@ -677,8 +676,7 @@ def extract_javascript(fileobj, keywords, comment_tags, options):
         # the call stack (to avoid capturing things contained within
         # these particular constructs).
         elif call_stack > 0 and token.type == 'operator' \
-             and (token.value == ')' \
-             or token.value == ']' or token.value == '}'):
+             and token.value in ('}', ']', ')'):
             call_stack -= 1
 
         elif funcname and call_stack == -1:

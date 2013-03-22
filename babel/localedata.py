@@ -20,6 +20,7 @@
 import os
 import cPickle as pickle
 from UserDict import DictMixin
+import zipfile
 
 from babel.compat import threading
 
@@ -98,7 +99,14 @@ def load(name, merge_inherited=True):
                     parent = '_'.join(parts[:-1])
                 data = load(parent).copy()
             filename = os.path.join(_dirname, '%s.dat' % name)
-            fileobj = open(filename, 'rb')
+            # It's possible we're inside a zipfile (zipimport).  If
+            # so, path will include 'something.zip'.
+            if ('.zip' + os.sep) in filename:
+                (zip_file, zip_path) = os.path.relpath(filename).split(
+                    '.zip' + os.sep, 1)
+                fileobj = zipfile.ZipFile(zip_file + '.zip').open(zip_path)
+            else:
+                fileobj = open(filename, 'rb')
             try:
                 if name != 'root' and merge_inherited:
                     merge(data, pickle.load(fileobj))

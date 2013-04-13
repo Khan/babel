@@ -448,6 +448,8 @@ def extract_python(fileobj, keywords, comment_tags, options):
                     in_translator_comments = True
                     translator_comments.append((lineno, value))
                     break
+        elif funcname and tok == OP and value == '[':     # dict lookup
+            call_stack += 1
         elif funcname and call_stack == 0:
             if tok == OP and value == ')':
                 if buf:
@@ -497,7 +499,7 @@ def extract_python(fileobj, keywords, comment_tags, options):
                     # for the comment to still be a valid one
                     old_lineno, old_comment = translator_comments.pop()
                     translator_comments.append((old_lineno + 1, old_comment))
-        elif call_stack > 0 and tok == OP and value == ')':
+        elif call_stack > 0 and tok == OP and value in [')', ']']:
             call_stack -= 1
         elif funcname and call_stack == -1:
             funcname = None

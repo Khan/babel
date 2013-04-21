@@ -157,7 +157,7 @@ class Locale(object):
         return cls.parse(locale_string)
 
     @classmethod
-    def negotiate(cls, preferred, available, sep='_', aliases=LOCALE_ALIASES):
+    def negotiate(cls, preferred, available, sep='-', aliases=LOCALE_ALIASES):
         """Find the best match between available and requested locale strings.
         
         >>> Locale.negotiate(['de_DE', 'en_US'], ['de_DE', 'de_AT'])
@@ -170,7 +170,7 @@ class Locale(object):
         the differnet components. This separator is applied to both lists. Also,
         case is ignored in the comparison:
         
-        >>> Locale.negotiate(['de-DE', 'de'], ['en-us', 'de-de'], sep='-')
+        >>> Locale.negotiate(['de_DE', 'de'], ['en_us', 'de_de'], sep='_')
         Locale('de', territory='DE')
         
         :param preferred: the list of locale identifers preferred by the user
@@ -187,10 +187,10 @@ class Locale(object):
             return Locale.parse(identifier, sep=sep)
 
     @classmethod
-    def parse(cls, identifier, sep='_'):
+    def parse(cls, identifier, sep='-'):
         """Create a `Locale` instance for the given locale identifier.
         
-        >>> l = Locale.parse('de-DE', sep='-')
+        >>> l = Locale.parse('de_DE', sep='_')
         >>> l.display_name
         u'Deutsch (Deutschland)'
         
@@ -649,7 +649,7 @@ def default_locale(category=None, aliases=LOCALE_ALIASES):
             except ValueError:
                 pass
 
-def negotiate_locale(preferred, available, sep='_', aliases=LOCALE_ALIASES):
+def negotiate_locale(preferred, available, sep='-', aliases=LOCALE_ALIASES):
     """Find the best match between available and requested locale strings.
     
     >>> negotiate_locale(['de_DE', 'en_US'], ['de_DE', 'de_AT'])
@@ -714,7 +714,7 @@ def negotiate_locale(preferred, available, sep='_', aliases=LOCALE_ALIASES):
             return parts[0]
     return None
 
-def parse_locale(identifier, sep='_'):
+def parse_locale(identifier, sep='-'):
     """Parse a locale identifier into a tuple of the form::
     
       ``(language, territory, script, variant)``
@@ -724,10 +724,10 @@ def parse_locale(identifier, sep='_'):
     >>> parse_locale('zh_Hans_CN')
     ('zh', 'CN', 'Hans', None)
     
-    The default component separator is "_", but a different separator can be
+    The default component separator is "-", but a different separator can be
     specified using the `sep` parameter:
     
-    >>> parse_locale('zh-CN', sep='-')
+    >>> parse_locale('zh_CN', sep='_')
     ('zh', 'CN', None, None)
     
     If the identifier cannot be parsed into a locale, a `ValueError` exception

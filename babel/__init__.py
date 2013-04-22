@@ -27,6 +27,9 @@ This package is basically composed of two major parts:
 """
 
 from babel.core import *
+from babel.dates import *
+from babel.numbers import *
+from babel.plural import *
 
 __docformat__ = 'restructuredtext en'
 try:

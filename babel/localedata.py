@@ -41,7 +41,15 @@ def exists(name):
     """
     if name in _cache:
         return True
-    return os.path.exists(os.path.join(_dirname, '%s.dat' % name))
+    filename = os.path.join(_dirname, '%s.dat' % name)
+    # It's possible we're inside a zipfile (zipimport).  If
+    # so, path will include 'something.zip'.
+    if ('.zip' + os.sep) in filename:
+        (zip_file, zip_path) = os.path.relpath(filename).split(
+            '.zip' + os.sep, 1)
+        return zip_path in zipfile.ZipFile(zip_file + '.zip').namelist()
+    else:
+        return os.path.exists(filename)
 
 
 def locale_identifiers():

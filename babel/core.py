@@ -15,6 +15,7 @@
 
 import os
 import cPickle as pickle
+import zipfile
 
 from babel import localedata
 
@@ -44,7 +45,14 @@ def get_global(key):
     if _global_data is None:
         dirname = os.path.join(os.path.dirname(__file__))
         filename = os.path.join(dirname, 'global.dat')
-        fileobj = open(filename, 'rb')
+        # It's possible we're inside a zipfile (zipimport).  If
+        # so, path will include 'something.zip'.
+        if ('.zip' + os.sep) in filename:
+            (zip_file, zip_path) = os.path.relpath(filename).split(
+                '.zip' + os.sep, 1)
+            fileobj = zipfile.ZipFile(zip_file + '.zip').open(zip_path)
+        else:
+            fileobj = open(filename, 'rb')
         try:
             _global_data = pickle.load(fileobj)
         finally:

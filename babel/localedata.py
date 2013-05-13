@@ -60,8 +60,17 @@ def locale_identifiers():
     :rtype: `list`
     :since: version 0.8.1
     """
+    if ('.zip' + os.sep) in _dirname:
+        (zip_file, zip_path) = os.path.relpath(_dirname).split(
+            '.zip' + os.sep, 1)
+        dirlist = [os.path.basename(d)
+                   for d in zipfile.ZipFile(zip_file + '.zip').namelist()
+                   if d.startswith(zip_path)]
+    else:
+        dirlist = os.listdir(_dirname)
+
     return [stem for stem, extension in [
-        os.path.splitext(filename) for filename in os.listdir(_dirname)
+        os.path.splitext(filename) for filename in dirlist
     ] if extension == '.dat' and stem != 'root']
 
 

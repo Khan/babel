@@ -187,11 +187,15 @@ def extract_from_dir(dirname=os.getcwd(), method_map=DEFAULT_MAPPING,
         # we don't want to guess how an 'ignore' for a directory
         # interacts with a previous non-ignore directive!
         for i in xrange(len(dirnames) - 1, -1, -1):  # backwards eases deletion
+            this_dirname = relpath(
+                os.path.join(root, dirnames[i]).replace(os.sep, '/'),
+                dirname
+            )
             for pattern, method in method_map:
                 if method != 'ignore':
                     break
                 if (os.path.basename(pattern) == '**'
-                    and pathmatch(os.path.dirname(pattern), dirnames[i])):
+                    and pathmatch(os.path.dirname(pattern), this_dirname)):
                     del dirnames[i]
                     break
 

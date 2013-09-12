@@ -591,6 +591,18 @@ class Catalog(object):
         key = self._key_for(id, message.context)
         current = self._messages.get(key)
         if current:
+            if (message.pluralizable and current.pluralizable and
+                message.id != current.id):
+                # The messages have conflicting pluralization.
+                plural_1 = message.id[1]
+                location_1 = ':'.join(map(str, message.locations[0]))
+                plural_2 = current.id[1]
+                location_2 = ':'.join(map(str, current.locations[0]))
+                raise TranslationError(
+                    "Found conflicting plurals for '%s': '%s' at %s and "
+                    "'%s' at %s. "
+                    "(Perhaps solve by replacing '1' with <var> in '%s')"
+                    % (key, plural_1, location_1, plural_2, location_2, key))
             if message.pluralizable and not current.pluralizable:
                 # The new message adds pluralization
                 current.id = message.id

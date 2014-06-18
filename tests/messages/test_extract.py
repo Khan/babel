@@ -424,8 +424,25 @@ msg = _('Bonjour à tous')
 """)
         messages = list(extract.extract_javascript(buf, ('_',), ['NOTE:'], {}))
         self.assertEqual(u'Bonjour à tous', messages[0][2])
-        self.assertEqual([u'NOTE: hello\ngoodbye'], messages[0][3])
+        self.assertEqual([u'NOTE: hello goodbye'], messages[0][3])
 
+    def test_extract_strip_comment_tags(self):
+        buf = StringIO("""\
+// NOTE: hello
+// NOTE: goodbye
+// multiline
+msg = _('Bonjour à tous')
+
+//: Simple comment tag
+msg = _('Simple')
+""")
+        messages = list(extract.extract('javascript', buf,
+                                        comment_tags=['NOTE:', ':'],
+                                        strip_comment_tags=True))
+        self.assertEqual(u'Bonjour à tous', messages[0][1])
+        self.assertEqual([u'hello', u'goodbye multiline'], messages[0][2])
+        self.assertEqual(u'Simple', messages[1][1])
+        self.assertEqual([u'Simple comment tag'], messages[1][2])
 
     def test_message_with_multiline_comment(self):
         buf = BytesIO(u"""\
@@ -436,7 +453,7 @@ msg = _('Bonjour à tous')
 """.encode('utf-8'))
         messages = list(extract.extract_javascript(buf, ('_',), ['NOTE:'], {}))
         self.assertEqual(u'Bonjour à tous', messages[0][2])
-        self.assertEqual([u'NOTE: hello\nand bonjour\n  and servus'], messages[0][3])
+        self.assertEqual([u'NOTE: hello and bonjour   and servus'], messages[0][3])
 
     def test_ignore_function_definitions(self):
         buf = BytesIO(b"""\
@@ -468,7 +485,7 @@ _('no comment here')
         self.assertEqual(u'Something', messages[0][2])
         self.assertEqual([u'NOTE: this will'], messages[0][3])
         self.assertEqual(u'Something else', messages[1][2])
-        self.assertEqual([u'NOTE: this will show up\ntoo.'], messages[1][3])
+        self.assertEqual([u'NOTE: this will show up too.'], messages[1][3])
         self.assertEqual(u'no comment here', messages[2][2])
         self.assertEqual([], messages[2][3])
 

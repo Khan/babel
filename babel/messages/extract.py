@@ -581,9 +581,12 @@ def extract_javascript(fileobj, keywords, comment_tags, options):
 
         elif call_stack == -1 and token.type == 'linecomment':
             value = token.value[2:].strip()
+
             if translator_comments and \
                translator_comments[-1][0] == token.lineno - 1:
-                translator_comments.append((token.lineno, value))
+                # Add this comment to the one on the previous row
+                translator_comments[-1] = (token.lineno, "%s\n%s" % (
+                    translator_comments[-1][1], value))
                 continue
 
             for comment_tag in comment_tags:
@@ -601,10 +604,10 @@ def extract_javascript(fileobj, keywords, comment_tags, options):
                     if lines:
                         lines[0] = lines[0].strip()
                         lines[1:] = dedent('\n'.join(lines[1:])).splitlines()
-                        for offset, line in enumerate(lines):
-                            translator_comments.append((token.lineno + offset,
-                                                        line))
+                        translator_comments.append(
+                            (token.lineno+len(lines), '\n'.join(lines)))
                     break
+
 
         elif funcname and call_stack == 0:
             if token.type == 'operator' and token.value == ')':

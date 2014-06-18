@@ -587,17 +587,17 @@ def extract_javascript(fileobj, keywords, comment_tags, options):
         elif call_stack == -1 and token.type == 'linecomment':
             value = token.value[2:].strip()
 
-            if translator_comments and \
-               translator_comments[-1][0] == token.lineno - 1:
-                # Add this comment to the one on the previous row
-                translator_comments[-1] = (token.lineno, "%s\n%s" % (
-                    translator_comments[-1][1], value))
-                continue
-
             for comment_tag in comment_tags:
                 if value.startswith(comment_tag):
                     translator_comments.append((token.lineno, value.strip()))
                     break
+
+            if translator_comments and \
+               translator_comments[-1][0] == token.lineno - 1:
+                # Add this comment to the one on the previous row
+                translator_comments[-1] = (token.lineno, "%s %s" % (
+                    translator_comments[-1][1], value))
+                continue
 
         elif token.type == 'multilinecomment':
             # only one multi-line comment may preceed a translation
@@ -610,7 +610,7 @@ def extract_javascript(fileobj, keywords, comment_tags, options):
                         lines[0] = lines[0].strip()
                         lines[1:] = dedent('\n'.join(lines[1:])).splitlines()
                         translator_comments.append(
-                            (token.lineno+len(lines), '\n'.join(lines)))
+                            (token.lineno+len(lines), ' '.join(lines)))
                     break
 
 

@@ -12,25 +12,24 @@
 # individuals. For the exact contribution history, see the revision
 # history and logs, available at http://babel.edgewall.org/log/.
 
-import cPickle as pickle
 from optparse import OptionParser
 import os
 import re
 import sys
-# don't put the ElementTree import in babel/compat.py as this will add a new
-# dependency (elementtree) for Python 2.4 users.
 try:
-    from xml.etree import ElementTree
+    from xml.etree import cElementTree as ElementTree
 except ImportError:
-    from elementtree import ElementTree
+    from xml.etree import ElementTree
+
+from datetime import date
 
 # Make sure we're using Babel source, and not some previously installed version
 sys.path.insert(0, os.path.join(os.path.dirname(sys.argv[0]), '..'))
 
 from babel import dates, numbers
-from babel.compat import any
 from babel.plural import PluralRule
 from babel.localedata import Alias
+from babel._compat import pickle, text_type
 
 parse = ElementTree.parse
 weekdays = {'mon': 0, 'tue': 1, 'wed': 2, 'thu': 3, 'fri': 4, 'sat': 5,
@@ -57,6 +56,33 @@ NAME_MAP = {
     'timeFormats': 'time_formats'
 }
 
+
+def log(message, *args):
+    if args:
+        message = message % args
+    sys.stderr.write(message + '\r\n')
+    sys.stderr.flush()
+
+
+def error(message, *args):
+    log('ERROR: %s' % message, *args)
+
+
+def need_conversion(dst_filename, data_dict, source_filename):
+    with open(source_filename, 'rb') as f:
+        blob = f.read(4096)
+        version = int(re.search(b'version number="\\$Revision: (\\d+)',
+                                blob).group(1))
+
+    data_dict['_version'] = version
+    if not os.path.isfile(dst_filename):
+        return True
+
+    with open(dst_filename, 'rb') as f:
+        data = pickle.load(f)
+        return data.get('_version') != version
+
+
 def _translate_alias(ctxt, path):
     parts = path.split('/')
     keys = ctxt[:]
@@ -73,6 +99,18 @@ def _translate_alias(ctxt, path):
     return keys
 
 
+def _parse_currency_date(s):
+    if not s:
+        return None
+    parts = s.split('-', 2)
+    return date(*map(int, parts + [1] * (3 - len(parts))))
+
+
+def _currency_sort_key(tup):
+    code, start, end, tender = tup
+    return int(not tender), start or date(1, 1, 1)
+
+
 def main():
     parser = OptionParser(usage='%prog path/to/cldr')
     options, args = parser.parse_args()
@@ -83,35 +121,112 @@ def main():
     destdir = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])),
                            '..', 'babel')
 
-    sup = parse(os.path.join(srcdir, 'supplemental', 'supplementalData.xml'))
+    sup_filename = os.path.join(srcdir, 'supplemental', 'supplementalData.xml')
+    bcp47_timezone = parse(os.path.join(srcdir, 'bcp47', 'timezone.xml'))
+    sup_windows_zones = parse(os.path.join(srcdir, 'supplemental',
+                                           'windowsZones.xml'))
+    sup_metadata = parse(os.path.join(srcdir, 'supplemental',
+                                      'supplementalMetadata.xml'))
+    sup_likely = parse(os.path.join(srcdir, 'supplemental',
+                                    'likelySubtags.xml'))
+    sup = parse(sup_filename)
 
     # Import global data from the supplemental files
+    global_path = os.path.join(destdir, 'global.dat')
     global_data = {}
+    if need_conversion(global_path, global_data, sup_filename):
+        territory_zones = global_data.setdefault('territory_zones', {})
+        zone_aliases = global_data.setdefault('zone_aliases', {})
+        zone_territories = global_data.setdefault('zone_territories', {})
+        win_mapping = global_data.setdefault('windows_zone_mapping', {})
+        language_aliases = global_data.setdefault('language_aliases', {})
+        territory_aliases = global_data.setdefault('territory_aliases', {})
+        script_aliases = global_data.setdefault('script_aliases', {})
+        variant_aliases = global_data.setdefault('variant_aliases', {})
+        likely_subtags = global_data.setdefault('likely_subtags', {})
+        territory_currencies = global_data.setdefault('territory_currencies', {})
 
-    territory_zones = global_data.setdefault('territory_zones', {})
-    zone_aliases = global_data.setdefault('zone_aliases', {})
-    zone_territories = global_data.setdefault('zone_territories', {})
-    for elem in sup.findall('.//timezoneData/zoneFormatting/zoneItem'):
-        tzid = elem.attrib['type']
-        territory_zones.setdefault(elem.attrib['territory'], []).append(tzid)
-        zone_territories[tzid] = elem.attrib['territory']
-        if 'aliases' in elem.attrib:
-            for alias in elem.attrib['aliases'].split():
-                zone_aliases[alias] = tzid
+        # create auxiliary zone->territory map from the windows zones (we don't set
+        # the 'zones_territories' map directly here, because there are some zones
+        # aliases listed and we defer the decision of which ones to choose to the
+        # 'bcp47' data
+        _zone_territory_map = {}
+        for map_zone in sup_windows_zones.findall(
+                './/windowsZones/mapTimezones/mapZone'):
+            if map_zone.attrib.get('territory') == '001':
+                win_mapping[map_zone.attrib['other']] = \
+                    map_zone.attrib['type'].split()[0]
+            for tzid in text_type(map_zone.attrib['type']).split():
+                _zone_territory_map[tzid] = \
+                    text_type(map_zone.attrib['territory'])
 
-    # Import Metazone mapping
-    meta_zones = global_data.setdefault('meta_zones', {})
-    tzsup = parse(os.path.join(srcdir, 'supplemental', 'metazoneInfo.xml'))
-    for elem in tzsup.findall('.//timezone'):
-        for child in elem.findall('usesMetazone'):
-            if 'to' not in child.attrib: # FIXME: support old mappings
-                meta_zones[elem.attrib['type']] = child.attrib['mzone']
+        for key_elem in bcp47_timezone.findall('.//keyword/key'):
+            if key_elem.attrib['name'] == 'tz':
+                for elem in key_elem.findall('type'):
+                    aliases = text_type(elem.attrib['alias']).split()
+                    tzid = aliases.pop(0)
+                    territory = _zone_territory_map.get(tzid, '001')
+                    territory_zones.setdefault(territory, []).append(tzid)
+                    zone_territories[tzid] = territory
+                    for alias in aliases:
+                        zone_aliases[alias] = tzid
+                break
 
-    outfile = open(os.path.join(destdir, 'global.dat'), 'wb')
-    try:
-        pickle.dump(global_data, outfile, 2)
-    finally:
-        outfile.close()
+        # Import Metazone mapping
+        meta_zones = global_data.setdefault('meta_zones', {})
+        tzsup = parse(os.path.join(srcdir, 'supplemental', 'metaZones.xml'))
+        for elem in tzsup.findall('.//timezone'):
+            for child in elem.findall('usesMetazone'):
+                if 'to' not in child.attrib: # FIXME: support old mappings
+                    meta_zones[elem.attrib['type']] = child.attrib['mzone']
+
+        # Language aliases
+        for alias in sup_metadata.findall('.//alias/languageAlias'):
+            # We don't have a use for those at the moment.  They don't
+            # pass our parser anyways.
+            if '-' in alias.attrib['type']:
+                continue
+            language_aliases[alias.attrib['type']] = alias.attrib['replacement']
+
+        # Territory aliases
+        for alias in sup_metadata.findall('.//alias/territoryAlias'):
+            territory_aliases[alias.attrib['type']] = \
+                alias.attrib['replacement'].split()
+
+        # Script aliases
+        for alias in sup_metadata.findall('.//alias/scriptAlias'):
+            script_aliases[alias.attrib['type']] = alias.attrib['replacement']
+
+        # Variant aliases
+        for alias in sup_metadata.findall('.//alias/variantAlias'):
+            repl = alias.attrib.get('replacement')
+            if repl:
+                variant_aliases[alias.attrib['type']] = repl
+
+        # Likely subtags
+        for likely_subtag in sup_likely.findall('.//likelySubtags/likelySubtag'):
+            likely_subtags[likely_subtag.attrib['from']] = \
+                likely_subtag.attrib['to']
+
+        # Currencies in territories
+        for region in sup.findall('.//currencyData/region'):
+            region_code = region.attrib['iso3166']
+            region_currencies = []
+            for currency in region.findall('./currency'):
+                cur_start = _parse_currency_date(currency.attrib.get('from'))
+                cur_end = _parse_currency_date(currency.attrib.get('to'))
+                region_currencies.append((currency.attrib['iso4217'],
+                                          cur_start, cur_end,
+                                          currency.attrib.get(
+                                              'tender', 'true') == 'true'))
+            region_currencies.sort(key=_currency_sort_key)
+            territory_currencies[region_code] = region_currencies
+
+        outfile = open(global_path, 'wb')
+        try:
+            pickle.dump(global_data, outfile, 2)
+        finally:
+            outfile.close()
 
     # build a territory containment mapping for inheritance
     regions = {}
@@ -120,8 +235,7 @@ def main():
 
     # Resolve territory containment
     territory_containment = {}
-    region_items = regions.items()
-    region_items.sort()
+    region_items = sorted(regions.items())
     for group, territory_list in region_items:
         for territory in territory_list:
             containers = territory_containment.setdefault(territory, set([]))
@@ -135,14 +249,14 @@ def main():
     for elem in prsup.findall('.//plurals/pluralRules'):
         rules = []
         for rule in elem.findall('pluralRule'):
-            rules.append((rule.attrib['count'], unicode(rule.text)))
+            rules.append((rule.attrib['count'], text_type(rule.text)))
         pr = PluralRule(rules)
         for locale in elem.attrib['locales'].split():
             plural_rules[locale] = pr
 
     filenames = os.listdir(os.path.join(srcdir, 'main'))
     filenames.remove('root.xml')
-    filenames.sort(lambda a,b: len(a)-len(b))
+    filenames.sort(key=len)
     filenames.insert(0, 'root.xml')
 
     for filename in filenames:
@@ -150,15 +264,19 @@ def main():
         if ext != '.xml':
             continue
 
-        print>>sys.stderr, 'Processing input file %r' % filename
-        tree = parse(os.path.join(srcdir, 'main', filename))
+        full_filename = os.path.join(srcdir, 'main', filename)
+        data_filename = os.path.join(destdir, 'localedata', stem + '.dat')
+
         data = {}
+        if not need_conversion(data_filename, data, full_filename):
+            continue
+
+        tree = parse(full_filename)
 
         language = None
         elem = tree.find('.//identity/language')
         if elem is not None:
             language = elem.attrib['type']
-        print>>sys.stderr, '  Language:  %r' % language
 
         territory = None
         elem = tree.find('.//identity/territory')
@@ -166,9 +284,10 @@ def main():
             territory = elem.attrib['type']
         else:
             territory = '001' # world
-        print>>sys.stderr, '  Territory: %r' % territory
         regions = territory_containment.get(territory, [])
-        print>>sys.stderr, '  Regions:    %r' % regions
+
+        log('Processing %s (Language = %s; Territory = %s)',
+            filename, language, territory)
 
         # plural rules
         locale_id = '_'.join(filter(None, [
@@ -236,15 +355,20 @@ def main():
         zone_formats = data.setdefault('zone_formats', {})
         for elem in tree.findall('.//timeZoneNames/gmtFormat'):
             if 'draft' not in elem.attrib and 'alt' not in elem.attrib:
-                zone_formats['gmt'] = unicode(elem.text).replace('{0}', '%s')
+                zone_formats['gmt'] = text_type(elem.text).replace('{0}', '%s')
                 break
         for elem in tree.findall('.//timeZoneNames/regionFormat'):
             if 'draft' not in elem.attrib and 'alt' not in elem.attrib:
-                zone_formats['region'] = unicode(elem.text).replace('{0}', '%s')
+                zone_formats['region'] = text_type(elem.text).replace('{0}', '%s')
                 break
         for elem in tree.findall('.//timeZoneNames/fallbackFormat'):
             if 'draft' not in elem.attrib and 'alt' not in elem.attrib:
-                zone_formats['fallback'] = unicode(elem.text) \
+                zone_formats['fallback'] = text_type(elem.text) \
+                    .replace('{0}', '%(0)s').replace('{1}', '%(1)s')
+                break
+        for elem in tree.findall('.//timeZoneNames/fallbackRegionFormat'):
+            if 'draft' not in elem.attrib and 'alt' not in elem.attrib:
+                zone_formats['fallback_region'] = text_type(elem.text) \
                     .replace('{0}', '%(0)s').replace('{1}', '%(1)s')
                 break
 
@@ -253,11 +377,11 @@ def main():
             info = {}
             city = elem.findtext('exemplarCity')
             if city:
-                info['city'] = unicode(city)
+                info['city'] = text_type(city)
             for child in elem.findall('long/*'):
-                info.setdefault('long', {})[child.tag] = unicode(child.text)
+                info.setdefault('long', {})[child.tag] = text_type(child.text)
             for child in elem.findall('short/*'):
-                info.setdefault('short', {})[child.tag] = unicode(child.text)
+                info.setdefault('short', {})[child.tag] = text_type(child.text)
             time_zones[elem.attrib['type']] = info
 
         meta_zones = data.setdefault('meta_zones', {})
@@ -265,12 +389,11 @@ def main():
             info = {}
             city = elem.findtext('exemplarCity')
             if city:
-                info['city'] = unicode(city)
+                info['city'] = text_type(city)
             for child in elem.findall('long/*'):
-                info.setdefault('long', {})[child.tag] = unicode(child.text)
+                info.setdefault('long', {})[child.tag] = text_type(child.text)
             for child in elem.findall('short/*'):
-                info.setdefault('short', {})[child.tag] = unicode(child.text)
-            info['common'] = elem.findtext('commonlyUsed') == 'true'
+                info.setdefault('short', {})[child.tag] = text_type(child.text)
             meta_zones[elem.attrib['type']] = info
 
         for calendar in tree.findall('.//calendars/calendar'):
@@ -290,7 +413,8 @@ def main():
                             if ('draft' in elem.attrib or 'alt' in elem.attrib) \
                                     and int(elem.attrib['type']) in widths:
                                 continue
-                            widths[int(elem.attrib.get('type'))] = unicode(elem.text)
+                            widths[int(elem.attrib.get('type'))] = \
+                                text_type(elem.text)
                         elif elem.tag == 'alias':
                             ctxts[width_type] = Alias(
                                 _translate_alias(['months', ctxt_type, width_type],
@@ -307,10 +431,11 @@ def main():
                     for elem in width.getiterator():
                         if elem.tag == 'day':
                             dtype = weekdays[elem.attrib['type']]
-                            if ('draft' in elem.attrib or 'alt' not in elem.attrib) \
+                            if ('draft' in elem.attrib or
+                                'alt' not in elem.attrib) \
                                     and dtype in widths:
                                 continue
-                            widths[dtype] = unicode(elem.text)
+                            widths[dtype] = text_type(elem.text)
                         elif elem.tag == 'alias':
                             ctxts[width_type] = Alias(
                                 _translate_alias(['days', ctxt_type, width_type],
@@ -329,12 +454,12 @@ def main():
                             if ('draft' in elem.attrib or 'alt' in elem.attrib) \
                                     and int(elem.attrib['type']) in widths:
                                 continue
-                            widths[int(elem.attrib['type'])] = unicode(elem.text)
+                            widths[int(elem.attrib['type'])] = text_type(elem.text)
                         elif elem.tag == 'alias':
                             ctxts[width_type] = Alias(
-                                _translate_alias(['quarters', ctxt_type, width_type],
-                                                 elem.attrib['path'])
-                            )
+                                _translate_alias(['quarters', ctxt_type,
+                                                  width_type],
+                                                 elem.attrib['path']))
 
             eras = data.setdefault('eras', {})
             for width in calendar.findall('eras/*'):
@@ -345,7 +470,7 @@ def main():
                         if ('draft' in elem.attrib or 'alt' in elem.attrib) \
                                 and int(elem.attrib['type']) in widths:
                             continue
-                        widths[int(elem.attrib.get('type'))] = unicode(elem.text)
+                        widths[int(elem.attrib.get('type'))] = text_type(elem.text)
                     elif elem.tag == 'alias':
                         eras[width_type] = Alias(
                             _translate_alias(['eras', width_type],
@@ -354,16 +479,13 @@ def main():
 
             # AM/PM
             periods = data.setdefault('periods', {})
-            for elem in calendar.findall('am'):
-                if ('draft' in elem.attrib or 'alt' in elem.attrib) \
-                        and elem.tag in periods:
-                    continue
-                periods[elem.tag] = unicode(elem.text)
-            for elem in calendar.findall('pm'):
-                if ('draft' in elem.attrib or 'alt' in elem.attrib) \
-                        and elem.tag in periods:
-                    continue
-                periods[elem.tag] = unicode(elem.text)
+            for day_period_width in calendar.findall(
+                    'dayPeriods/dayPeriodContext/dayPeriodWidth'):
+                if day_period_width.attrib['type'] == 'wide':
+                    for day_period in day_period_width.findall('dayPeriod'):
+                        if 'alt' not in day_period.attrib:
+                            periods[day_period.attrib['type']] = text_type(
+                                day_period.text)
 
             date_formats = data.setdefault('date_formats', {})
             for format in calendar.findall('dateFormats'):
@@ -374,9 +496,10 @@ def main():
                             continue
                         try:
                             date_formats[elem.attrib.get('type')] = \
-                                dates.parse_pattern(unicode(elem.findtext('dateFormat/pattern')))
-                        except ValueError, e:
-                            print>>sys.stderr, 'ERROR: %s' % e
+                                dates.parse_pattern(text_type(
+                                    elem.findtext('dateFormat/pattern')))
+                        except ValueError as e:
+                            error(e)
                     elif elem.tag == 'alias':
                         date_formats = Alias(_translate_alias(
                             ['date_formats'], elem.attrib['path'])
@@ -391,9 +514,10 @@ def main():
                             continue
                         try:
                             time_formats[elem.attrib.get('type')] = \
-                                dates.parse_pattern(unicode(elem.findtext('timeFormat/pattern')))
-                        except ValueError, e:
-                            print>>sys.stderr, 'ERROR: %s' % e
+                                dates.parse_pattern(text_type(
+                                    elem.findtext('timeFormat/pattern')))
+                        except ValueError as e:
+                            error(e)
                     elif elem.tag == 'alias':
                         time_formats = Alias(_translate_alias(
                             ['time_formats'], elem.attrib['path'])
@@ -408,9 +532,9 @@ def main():
                             continue
                         try:
                             datetime_formats[elem.attrib.get('type')] = \
-                                unicode(elem.findtext('dateTimeFormat/pattern'))
-                        except ValueError, e:
-                            print>>sys.stderr, 'ERROR: %s' % e
+                                text_type(elem.findtext('dateTimeFormat/pattern'))
+                        except ValueError as e:
+                            error(e)
                     elif elem.tag == 'alias':
                         datetime_formats = Alias(_translate_alias(
                             ['datetime_formats'], elem.attrib['path'])
@@ -422,67 +546,79 @@ def main():
         for elem in tree.findall('.//numbers/symbols/*'):
             if ('draft' in elem.attrib or 'alt' in elem.attrib):
                 continue
-            number_symbols[elem.tag] = unicode(elem.text)
+            number_symbols[elem.tag] = text_type(elem.text)
 
         decimal_formats = data.setdefault('decimal_formats', {})
         for elem in tree.findall('.//decimalFormats/decimalFormatLength'):
             if ('draft' in elem.attrib or 'alt' in elem.attrib) \
                     and elem.attrib.get('type') in decimal_formats:
                 continue
-            pattern = unicode(elem.findtext('decimalFormat/pattern'))
-            decimal_formats[elem.attrib.get('type')] = numbers.parse_pattern(pattern)
+            if elem.findall('./alias'):
+                # TODO map the alias to its target
+                continue
+            pattern = text_type(elem.findtext('./decimalFormat/pattern'))
+            decimal_formats[elem.attrib.get('type')] = \
+                numbers.parse_pattern(pattern)
 
         scientific_formats = data.setdefault('scientific_formats', {})
         for elem in tree.findall('.//scientificFormats/scientificFormatLength'):
             if ('draft' in elem.attrib or 'alt' in elem.attrib) \
                     and elem.attrib.get('type') in scientific_formats:
                 continue
-            pattern = unicode(elem.findtext('scientificFormat/pattern'))
-            scientific_formats[elem.attrib.get('type')] = numbers.parse_pattern(pattern)
+            pattern = text_type(elem.findtext('scientificFormat/pattern'))
+            scientific_formats[elem.attrib.get('type')] = \
+                numbers.parse_pattern(pattern)
 
         currency_formats = data.setdefault('currency_formats', {})
         for elem in tree.findall('.//currencyFormats/currencyFormatLength'):
             if ('draft' in elem.attrib or 'alt' in elem.attrib) \
                     and elem.attrib.get('type') in currency_formats:
                 continue
-            pattern = unicode(elem.findtext('currencyFormat/pattern'))
-            currency_formats[elem.attrib.get('type')] = numbers.parse_pattern(pattern)
+            pattern = text_type(elem.findtext('currencyFormat/pattern'))
+            currency_formats[elem.attrib.get('type')] = \
+                numbers.parse_pattern(pattern)
 
         percent_formats = data.setdefault('percent_formats', {})
         for elem in tree.findall('.//percentFormats/percentFormatLength'):
             if ('draft' in elem.attrib or 'alt' in elem.attrib) \
                     and elem.attrib.get('type') in percent_formats:
                 continue
-            pattern = unicode(elem.findtext('percentFormat/pattern'))
-            percent_formats[elem.attrib.get('type')] = numbers.parse_pattern(pattern)
+            pattern = text_type(elem.findtext('percentFormat/pattern'))
+            percent_formats[elem.attrib.get('type')] = \
+                numbers.parse_pattern(pattern)
 
         currency_names = data.setdefault('currency_names', {})
+        currency_names_plural = data.setdefault('currency_names_plural', {})
         currency_symbols = data.setdefault('currency_symbols', {})
         for elem in tree.findall('.//currencies/currency'):
             code = elem.attrib['type']
-            # TODO: support plural rules for currency name selection
             for name in elem.findall('displayName'):
-                if ('draft' in name.attrib or 'count' in name.attrib) \
-                        and code in currency_names:
+                if ('draft' in name.attrib) and code in currency_names:
                     continue
-                currency_names[code] = unicode(name.text)
+                if 'count' in name.attrib:
+                    currency_names_plural.setdefault(code, {})[
+                        name.attrib['count']] = text_type(name.text)
+                else:
+                    currency_names[code] = text_type(name.text)
             # TODO: support choice patterns for currency symbol selection
             symbol = elem.find('symbol')
             if symbol is not None and 'draft' not in symbol.attrib \
                     and 'choice' not in symbol.attrib:
-                currency_symbols[code] = unicode(symbol.text)
+                currency_symbols[code] = text_type(symbol.text)
 
         # <units>
 
         unit_patterns = data.setdefault('unit_patterns', {})
         for elem in tree.findall('.//units/unit'):
             unit_type = elem.attrib['type']
-            unit_pattern = unit_patterns.setdefault(unit_type, {})
             for pattern in elem.findall('unitPattern'):
-                unit_patterns[unit_type][pattern.attrib['count']] = \
-                        unicode(pattern.text)
+                box = unit_type
+                if 'alt' in pattern.attrib:
+                    box += ':' + pattern.attrib['alt']
+                unit_patterns.setdefault(box, {})[pattern.attrib['count']] = \
+                    text_type(pattern.text)
 
-        outfile = open(os.path.join(destdir, 'localedata', stem + '.dat'), 'wb')
+        outfile = open(data_filename, 'wb')
         try:
             pickle.dump(data, outfile, 2)
         finally:

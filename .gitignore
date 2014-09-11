@@ -10,7 +10,6 @@ dist
 .tox
 test-env
 **/__pycache__
-babel/global.dat
 tests/messages/data/project/i18n/long_messages.pot
 tests/messages/data/project/i18n/temp.pot
 tests/messages/data/project/i18n/en_US

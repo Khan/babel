@@ -440,11 +440,6 @@ def extract_python(fileobj, keywords, comment_tags, options):
             if PY2:
                 value = value.decode(encoding)
             value = value[1:].strip()
-            if in_translator_comments and \
-                    translator_comments[-1][0] == lineno - 1:
-                # We're already inside a translator comment, continue appending
-                translator_comments.append((lineno, value))
-                continue
             # If execution reaches this point, let's see if comment line
             # starts with one of the comment tags
             for comment_tag in comment_tags:
@@ -452,6 +447,16 @@ def extract_python(fileobj, keywords, comment_tags, options):
                     in_translator_comments = True
                     translator_comments.append((lineno, value))
                     break
+
+            if in_translator_comments and \
+                    translator_comments[-1][0] == lineno - 1:
+                # We're already inside a translator comment, continue appending
+                # to previous comment
+                previous_comment_value = translator_comments[-1][1]
+                translator_comments[-1] = (lineno, "%s %s" % (
+                    previous_comment_value, value))
+                continue
+
         elif funcname and tok == OP and value == '[':     # dict lookup
             call_stack += 1
         elif funcname and call_stack == 0:

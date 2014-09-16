@@ -158,8 +158,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel %(version)s\n"
 
-#. TRANSLATOR: This will be a translator coment,
-#. that will include several lines
+#. TRANSLATOR: This will be a translator comment, that will merge several lines
 #: project/file1.py:8
 msgid "bar"
 msgstr ""
@@ -216,8 +215,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel %(version)s\n"
 
-#. TRANSLATOR: This will be a translator coment,
-#. that will include several lines
+#. TRANSLATOR: This will be a translator comment, that will merge several lines
 #: project/file1.py:8
 msgid "bar"
 msgstr ""
@@ -273,8 +271,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel %(version)s\n"
 
-#. TRANSLATOR: This will be a translator coment,
-#. that will include several lines
+#. TRANSLATOR: This will be a translator comment, that will merge several lines
 #: project/file1.py:8
 msgid "bar"
 msgstr ""
@@ -366,8 +363,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel %(version)s\n"
 
-#. This will be a translator coment,
-#. that will include several lines
+#. This will be a translator comment, that will merge several lines
 #: project/file1.py:8
 msgid "bar"
 msgstr ""
@@ -416,8 +412,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel %(version)s\n"
 
-#. This will be a translator coment,
-#. that will include several lines
+#. This will be a translator comment, that will merge several lines
 #: project/file1.py:8
 msgid "bar"
 msgstr ""
@@ -467,8 +462,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel %(version)s\n"
 
-#. This will be a translator coment,
-#. that will include several lines
+#. This will be a translator comment, that will merge several lines
 #: project/file1.py:8
 msgid "bar"
 msgstr ""
@@ -518,8 +512,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel %(version)s\n"
 
-#. This will be a translator coment,
-#. that will include several lines
+#. This will be a translator comment, that will merge several lines
 #: project/file1.py:8
 msgid "bar"
 msgstr ""
@@ -575,8 +568,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel %(version)s\n"
 
-#. This will be a translator coment,
-#. that will include several lines
+#. This will be a translator comment, that will merge several lines
 #: project/file1.py:8
 msgid %(long_message)s
 msgstr ""
@@ -633,8 +625,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel %(version)s\n"
 
-#. This will be a translator coment,
-#. that will include several lines
+#. This will be a translator comment, that will merge several lines
 #: project/file1.py:8
 msgid %(long_message)s
 msgstr ""
@@ -787,8 +778,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel %(version)s\n"
 
-#. TRANSLATOR: This will be a translator coment,
-#. that will include several lines
+#. TRANSLATOR: This will be a translator comment, that will merge several lines
 #: project/file1.py:8
 msgid "bar"
 msgstr ""
@@ -843,8 +833,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel %(version)s\n"
 
-#. TRANSLATOR: This will be a translator coment,
-#. that will include several lines
+#. TRANSLATOR: This will be a translator comment, that will merge several lines
 #: project/file1.py:8
 msgid "bar"
 msgstr ""
@@ -891,8 +880,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel %(version)s\n"
 
-#. This will be a translator coment,
-#. that will include several lines
+#. This will be a translator comment, that will merge several lines
 #: project/file1.py:8
 msgid "bar"
 msgstr ""
@@ -941,8 +929,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel %(version)s\n"
 
-#. This will be a translator coment,
-#. that will include several lines
+#. This will be a translator comment, that will merge several lines
 #: project/file1.py:8
 msgid "bar"
 msgstr ""
@@ -988,8 +975,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel %(version)s\n"
 
-#. This will be a translator coment,
-#. that will include several lines
+#. This will be a translator comment, that will merge several lines
 #: project/file1.py:8
 msgid "bar"
 msgstr ""

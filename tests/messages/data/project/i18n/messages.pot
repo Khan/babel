@@ -18,8 +18,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 0.1\n"
 
-#. This will be a translator coment,
-#. that will include several lines
+#. This will be a translator comment, that will merge several lines
 #: project/file1.py:8
 msgid "bar"
 msgstr ""

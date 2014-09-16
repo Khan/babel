@@ -193,7 +193,7 @@ msg = _(u'Foo Bar')
 """)
         messages = list(extract.extract_python(buf, ('_',), ['NOTE:'], {}))
         self.assertEqual(u'Foo Bar', messages[0][2])
-        self.assertEqual([u'NOTE: A translation comment', u'with a second line'],
+        self.assertEqual([u'NOTE: A translation comment with a second line'],
                          messages[0][3])
 
     def test_translator_comments_with_previous_non_translator_comments(self):
@@ -206,7 +206,7 @@ msg = _(u'Foo Bar')
 """)
         messages = list(extract.extract_python(buf, ('_',), ['NOTE:'], {}))
         self.assertEqual(u'Foo Bar', messages[0][2])
-        self.assertEqual([u'NOTE: A translation comment', u'with a second line'],
+        self.assertEqual([u'NOTE: A translation comment with a second line'],
                          messages[0][3])
 
     def test_comment_tags_not_on_start_of_comment(self):
@@ -233,8 +233,8 @@ msg = _(u'Foo Bar2')
         messages = list(extract.extract_python(buf, ('_',),
                                                ['NOTE1:', 'NOTE2:'], {}))
         self.assertEqual(u'Foo Bar1', messages[0][2])
-        self.assertEqual([u'NOTE1: A translation comment for tag1',
-                          u'with a second line'], messages[0][3])
+        self.assertEqual([u'NOTE1: A translation comment for tag1 with a '
+                          u'second line'], messages[0][3])
         self.assertEqual(u'Foo Bar2', messages[1][2])
         self.assertEqual([u'NOTE2: A translation comment for tag2'], messages[1][3])
 
@@ -358,6 +358,7 @@ msgu = _(u'Bonjour à tous')
 #: prefix specified
 _('Servus')
 
+# NOTE: This is a single line comment
 # NOTE: This is a multiline comment with
 # a prefix too
 _('Babatschi')""")
@@ -367,8 +368,9 @@ _('Babatschi')""")
         self.assertEqual([u'This is a comment with a very simple',
                           u'prefix specified'], messages[0][2])
         self.assertEqual(u'Babatschi', messages[1][1])
-        self.assertEqual([u'This is a multiline comment with',
-                          u'a prefix too'], messages[1][2])
+        self.assertEqual([u'This is a single line comment',
+                          u'This is a multiline comment with a prefix too'],
+                         messages[1][2])
 
 
 class ExtractJavaScriptTestCase(unittest.TestCase):

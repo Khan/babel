@@ -35,10 +35,10 @@ class DateTimeFormatTestCase(unittest.TestCase):
 
     def test_month_context(self):
         d = date(2006, 2, 8)
-        fmt = dates.DateTimeFormat(d, locale='cs_CZ')
-        self.assertEqual(u'2', fmt['MMMMM']) # narrow format
-        fmt = dates.DateTimeFormat(d, locale='cs_CZ')
-        self.assertEqual(u'ú', fmt['LLLLL']) # narrow standalone
+        fmt = dates.DateTimeFormat(d, locale='mt_MT')
+        self.assertEqual(u'F', fmt['MMMMM']) # narrow format
+        fmt = dates.DateTimeFormat(d, locale='mt_MT')
+        self.assertEqual(u'Fr', fmt['LLLLL']) # narrow standalone
 
     def test_abbreviated_month_alias(self):
         d = date(2006, 3, 8)
@@ -177,39 +177,39 @@ class DateTimeFormatTestCase(unittest.TestCase):
 
     def test_timezone_rfc822(self):
         tz = timezone('Europe/Berlin')
-        t = time(15, 30, tzinfo=tz)
+        t = tz.localize(datetime(2015, 1, 1, 15, 30))
         fmt = dates.DateTimeFormat(t, locale='de_DE')
         self.assertEqual('+0100', fmt['Z'])
 
     def test_timezone_gmt(self):
         tz = timezone('Europe/Berlin')
-        t = time(15, 30, tzinfo=tz)
+        t = tz.localize(datetime(2015, 1, 1, 15, 30))
         fmt = dates.DateTimeFormat(t, locale='de_DE')
         self.assertEqual('GMT+01:00', fmt['ZZZZ'])
 
     def test_timezone_name(self):
         tz = timezone('Europe/Paris')
-        dt = datetime(2007, 4, 1, 15, 30, tzinfo=tz)
+        dt = tz.localize(datetime(2007, 4, 1, 15, 30))
         fmt = dates.DateTimeFormat(dt, locale='fr_FR')
-        self.assertEqual('Heure : France', fmt['v'])
+        self.assertEqual('heure : France', fmt['v'])
 
     def test_timezone_location_format(self):
         tz = timezone('Europe/Paris')
         dt = datetime(2007, 4, 1, 15, 30, tzinfo=tz)
         fmt = dates.DateTimeFormat(dt, locale='fr_FR')
-        self.assertEqual('Heure : France', fmt['VVVV'])
+        self.assertEqual('heure : France', fmt['VVVV'])
 
     def test_timezone_walltime_short(self):
         tz = timezone('Europe/Paris')
         t = time(15, 30, tzinfo=tz)
         fmt = dates.DateTimeFormat(t, locale='fr_FR')
-        self.assertEqual('Heure : France', fmt['v'])
+        self.assertEqual('heure : France', fmt['v'])
 
     def test_timezone_walltime_long(self):
         tz = timezone('Europe/Paris')
         t = time(15, 30, tzinfo=tz)
         fmt = dates.DateTimeFormat(t, locale='fr_FR')
-        self.assertEqual(u'heure de l\u2019Europe centrale', fmt['vvvv'])
+        self.assertEqual(u'heure d\u2019Europe centrale', fmt['vvvv'])
 
     def test_hour_formatting(self):
         l = 'en_US'
@@ -265,7 +265,6 @@ class FormatTimeTestCase(unittest.TestCase):
         formatted_time = dates.format_time(epoch, format='long', locale='en_US')
         self.assertEqual(u'3:30:29 PM +0000', formatted_time)
 
-
     def test_with_date_fields_in_pattern(self):
         self.assertRaises(AttributeError, dates.format_time, date(2007, 4, 1),
                           "yyyy-MM-dd HH:mm", locale='en_US')
@@ -305,7 +304,7 @@ class FormatTimedeltaTestCase(unittest.TestCase):
         string = dates.format_timedelta(timedelta(hours=1),
                                         locale='en',
                                         add_direction=True)
-        self.assertEqual('In 1 hour', string)
+        self.assertEqual('in 1 hour', string)
         string = dates.format_timedelta(timedelta(hours=-1),
                                         locale='en',
                                         add_direction=True)
@@ -336,14 +335,14 @@ def test_get_period_names():
 
 def test_get_day_names():
     assert dates.get_day_names('wide', locale='en_US')[1] == u'Tuesday'
-    assert dates.get_day_names('abbreviated', locale='es')[1] == u'mar'
+    assert dates.get_day_names('abbreviated', locale='es')[1] == u'mar.'
     de = dates.get_day_names('narrow', context='stand-alone', locale='de_DE')
     assert de[1] == u'D'
 
 
 def test_get_month_names():
     assert dates.get_month_names('wide', locale='en_US')[1] == u'January'
-    assert dates.get_month_names('abbreviated', locale='es')[1] == u'ene'
+    assert dates.get_month_names('abbreviated', locale='es')[1] == u'ene.'
     de = dates.get_month_names('narrow', context='stand-alone', locale='de_DE')
     assert de[1] == u'J'
 
@@ -380,17 +379,17 @@ def test_get_timezone_gmt():
     assert dates.get_timezone_gmt(dt, locale='en') == u'GMT+00:00'
 
     tz = timezone('America/Los_Angeles')
-    dt = datetime(2007, 4, 1, 15, 30, tzinfo=tz)
-    assert dates.get_timezone_gmt(dt, locale='en') == u'GMT-08:00'
-    assert dates.get_timezone_gmt(dt, 'short', locale='en') == u'-0800'
+    dt = tz.localize(datetime(2007, 4, 1, 15, 30))
+    assert dates.get_timezone_gmt(dt, locale='en') == u'GMT-07:00'
+    assert dates.get_timezone_gmt(dt, 'short', locale='en') == u'-0700'
 
-    assert dates.get_timezone_gmt(dt, 'long', locale='fr_FR') == u'UTC-08:00'
+    assert dates.get_timezone_gmt(dt, 'long', locale='fr_FR') == u'UTC-07:00'
 
 
 def test_get_timezone_location():
     tz = timezone('America/St_Johns')
     assert (dates.get_timezone_location(tz, locale='de_DE') ==
-            u"Kanada (St. John's) Zeit")
+            u"Kanada (St. John\u2019s) Zeit")
     tz = timezone('America/Mexico_City')
     assert (dates.get_timezone_location(tz, locale='de_DE') ==
             u'Mexiko (Mexiko-Stadt) Zeit')
@@ -451,7 +450,7 @@ def test_format_datetime():
     full = dates.format_datetime(dt, 'full', tzinfo=timezone('Europe/Paris'),
                                  locale='fr_FR')
     assert full == (u'dimanche 1 avril 2007 17:30:00 heure '
-                    u'avanc\xe9e d\u2019Europe centrale')
+                    u'd\u2019\xe9t\xe9 d\u2019Europe centrale')
     custom = dates.format_datetime(dt, "yyyy.MM.dd G 'at' HH:mm:ss zzz",
                                    tzinfo=timezone('US/Eastern'), locale='en')
     assert custom == u'2007.04.01 AD at 11:30:00 EDT'
@@ -469,7 +468,7 @@ def test_format_time():
     tzinfo = timezone('Europe/Paris')
     t = tzinfo.localize(t)
     fr = dates.format_time(t, format='full', tzinfo=tzinfo, locale='fr_FR')
-    assert fr == u'15:30:00 heure avanc\xe9e d\u2019Europe centrale'
+    assert fr == u'15:30:00 heure d\u2019\xe9t\xe9 d\u2019Europe centrale'
     custom = dates.format_time(t, "hh 'o''clock' a, zzzz",
                                tzinfo=timezone('US/Eastern'), locale='en')
     assert custom == u"09 o'clock AM, Eastern Daylight Time"
@@ -477,7 +476,7 @@ def test_format_time():
     t = time(15, 30)
     paris = dates.format_time(t, format='full',
                               tzinfo=timezone('Europe/Paris'), locale='fr_FR')
-    assert paris == u'15:30:00 heure normale de l\u2019Europe centrale'
+    assert paris == u'15:30:00 heure normale d\u2019Europe centrale'
     us_east = dates.format_time(t, format='full',
                                 tzinfo=timezone('US/Eastern'), locale='en_US')
     assert us_east == u'3:30:00 PM Eastern Standard Time'

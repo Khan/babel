@@ -1,28 +1,14 @@
 Babel Changelog
 ===============
 
-Version 3.0
------------
-
-(release date to be decided; codename to be picked)
-
-- Upgraded data to CLDR 26
-- Add official support for Python 3.4
-- Improved odict performance which is used during localization file
-  build, should improve compilation time for large projects
-- Add support for "narrow" format for format_timedelta
-
 Version 2.0
 -----------
 
-(Released on July 27th 2015, codename Second Coming)
+(release date to be decided, codename to be selected)
 
 - Added support for looking up currencies that belong to a territory
   through the :func:`babel.numbers.get_territory_currencies`
   function.
-- Improved Python 3 support.
-- Fixed some broken tests for timezone behavior.
-- Improved various smaller things for dealing with dates.
 
 Version 1.4
 -----------

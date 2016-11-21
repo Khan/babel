@@ -42,6 +42,5 @@ Additional Notes
 .. toctree::
    :maxdepth: 2
 
-   dev
    changelog
    license

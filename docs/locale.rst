@@ -80,9 +80,9 @@ Locale Display Names
 ====================
 
 Locales itself can be used to describe the locale itself or other locales.
-This mainly means that given a locale object you can ask it for its
+This mainly means that given a locale object you can ask it for it's
 canonical display name, the name of the language and other things.  Since
-the locales cross-reference each other you can ask for locale names in any
+the locales cross reference each other you can ask for locale names in any
 language supported by the CLDR:
 
 .. code-block:: pycon
@@ -109,11 +109,11 @@ want.  You can also ask for the information in parts:
     u'Alemanha'
 
 
-Calendar Display Names
+Calender Display Names
 ======================
 
 The :class:`~babel.core.Locale` class provides access to many locale
-display names related to calendar display, such as the names of weekdays
+display names related to calendar display, such as the names of week days
 or months.
 
 These display names are of course used for date formatting, but can also be

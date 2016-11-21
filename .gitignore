@@ -1,6 +1,3 @@
-*~
-*.swp
-.idea
 *.so
 docs/_build
 *.pyc

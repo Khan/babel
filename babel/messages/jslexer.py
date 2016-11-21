@@ -48,7 +48,6 @@ regex_re = re.compile(r'/(?:[^/\\]*(?:\\.[^/\\]*)*)/[a-zA-Z]*(?s)')
 line_re = re.compile(r'(\r\n|\n|\r)')
 line_join_re = re.compile(r'\\' + line_re.pattern)
 uni_escape_re = re.compile(r'[a-fA-F0-9]{1,4}')
-hex_escape_re = re.compile(r'[a-fA-F0-9]{2}')
 
 
 class Token(tuple):
@@ -96,7 +95,7 @@ def unquote_string(string):
         if next_char in escapes:
             add(escapes[next_char])
 
-        # unicode escapes.  try to consume up to four characters of
+        # unicode escapes.  trie to consume up to four characters of
         # hexadecimal characters and try to interpret them as unicode
         # character point.  If there is no such character point, put
         # all the consumed characters into the string.
@@ -112,27 +111,6 @@ def unquote_string(string):
                     else:
                         pos = escape_pos + 6
                         continue
-                add(next_char + escaped_value)
-                pos = escaped.end()
-                continue
-            else:
-                add(next_char)
-
-        # hex escapes.  try to consume two characters of
-        # hexadecimal characters and try to interpret them as unicode
-        # character point.  If there is no such character point, put
-        # all the consumed characters into the string.
-        elif next_char == 'x':
-            escaped = hex_escape_re.match(string, escape_pos + 2)
-            if escaped is not None:
-                escaped_value = escaped.group()
-                try:
-                    add(unichr(int(escaped_value, 16)))
-                except ValueError:
-                    pass
-                else:
-                    pos = escape_pos + 4
-                    continue
                 add(next_char + escaped_value)
                 pos = escaped.end()
                 continue

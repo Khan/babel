@@ -21,6 +21,8 @@ try:
 except ImportError:
     from xml.etree import ElementTree
 
+from datetime import date
+
 # Make sure we're using Babel source, and not some previously installed version
 sys.path.insert(0, os.path.join(os.path.dirname(sys.argv[0]), '..'))
 
@@ -101,12 +103,12 @@ def _parse_currency_date(s):
     if not s:
         return None
     parts = s.split('-', 2)
-    return tuple(map(int, parts + [1] * (3 - len(parts))))
+    return date(*map(int, parts + [1] * (3 - len(parts))))
 
 
 def _currency_sort_key(tup):
     code, start, end, tender = tup
-    return int(not tender), start or (1, 1, 1)
+    return int(not tender), start or date(1, 1, 1)
 
 
 def main():
@@ -143,7 +145,6 @@ def main():
         variant_aliases = global_data.setdefault('variant_aliases', {})
         likely_subtags = global_data.setdefault('likely_subtags', {})
         territory_currencies = global_data.setdefault('territory_currencies', {})
-        parent_exceptions = global_data.setdefault('parent_exceptions', {})
 
         # create auxiliary zone->territory map from the windows zones (we don't set
         # the 'zones_territories' map directly here, because there are some zones
@@ -162,14 +163,13 @@ def main():
         for key_elem in bcp47_timezone.findall('.//keyword/key'):
             if key_elem.attrib['name'] == 'tz':
                 for elem in key_elem.findall('type'):
-                    if 'deprecated' not in elem.attrib:
-                        aliases = text_type(elem.attrib['alias']).split()
-                        tzid = aliases.pop(0)
-                        territory = _zone_territory_map.get(tzid, '001')
-                        territory_zones.setdefault(territory, []).append(tzid)
-                        zone_territories[tzid] = territory
-                        for alias in aliases:
-                            zone_aliases[alias] = tzid
+                    aliases = text_type(elem.attrib['alias']).split()
+                    tzid = aliases.pop(0)
+                    territory = _zone_territory_map.get(tzid, '001')
+                    territory_zones.setdefault(territory, []).append(tzid)
+                    zone_territories[tzid] = territory
+                    for alias in aliases:
+                        zone_aliases[alias] = tzid
                 break
 
         # Import Metazone mapping
@@ -184,7 +184,7 @@ def main():
         for alias in sup_metadata.findall('.//alias/languageAlias'):
             # We don't have a use for those at the moment.  They don't
             # pass our parser anyways.
-            if '_' in alias.attrib['type']:
+            if '-' in alias.attrib['type']:
                 continue
             language_aliases[alias.attrib['type']] = alias.attrib['replacement']
 
@@ -221,12 +221,6 @@ def main():
                                               'tender', 'true') == 'true'))
             region_currencies.sort(key=_currency_sort_key)
             territory_currencies[region_code] = region_currencies
-
-        # Explicit parent locales
-        for paternity in sup.findall('.//parentLocales/parentLocale'):
-            parent = paternity.attrib['parent']
-            for child in paternity.attrib['locales'].split():
-                parent_exceptions[child] = parent
 
         outfile = open(global_path, 'wb')
         try:
@@ -615,25 +609,14 @@ def main():
         # <units>
 
         unit_patterns = data.setdefault('unit_patterns', {})
-        for elem in tree.findall('.//units/unitLength'):
-            unit_length_type = elem.attrib['type']
-            for unit in elem.findall('unit'):
-                unit_type = unit.attrib['type']
-                for pattern in unit.findall('unitPattern'):
-                    box = unit_type
-                    box += ':' + unit_length_type
-                    unit_patterns.setdefault(box, {})[pattern.attrib['count']] = \
-                        text_type(pattern.text)
-
-        date_fields = data.setdefault('date_fields', {})
-        for elem in tree.findall('.//dates/fields/field'):
-            field_type = elem.attrib['type']
-            date_fields.setdefault(field_type, {})
-            for rel_time in elem.findall('relativeTime'):
-                rel_time_type = rel_time.attrib['type']
-                for pattern in rel_time.findall('relativeTimePattern'):
-                    date_fields[field_type].setdefault(rel_time_type, {})\
-                        [pattern.attrib['count']] = text_type(pattern.text)
+        for elem in tree.findall('.//units/unit'):
+            unit_type = elem.attrib['type']
+            for pattern in elem.findall('unitPattern'):
+                box = unit_type
+                if 'alt' in pattern.attrib:
+                    box += ':' + pattern.attrib['alt']
+                unit_patterns.setdefault(box, {})[pattern.attrib['count']] = \
+                    text_type(pattern.text)
 
         outfile = open(data_filename, 'wb')
         try:

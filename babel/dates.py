@@ -19,7 +19,6 @@
 from __future__ import division
 
 import re
-import warnings
 import pytz as _pytz
 
 from datetime import date, datetime, time, timedelta
@@ -167,7 +166,7 @@ def get_day_names(width='wide', context='format', locale=LC_TIME):
     >>> get_day_names('wide', locale='en_US')[1]
     u'Tuesday'
     >>> get_day_names('abbreviated', locale='es')[1]
-    u'mar.'
+    u'mar'
     >>> get_day_names('narrow', context='stand-alone', locale='de_DE')[1]
     u'D'
 
@@ -184,7 +183,7 @@ def get_month_names(width='wide', context='format', locale=LC_TIME):
     >>> get_month_names('wide', locale='en_US')[1]
     u'January'
     >>> get_month_names('abbreviated', locale='es')[1]
-    u'ene.'
+    u'ene'
     >>> get_month_names('narrow', context='stand-alone', locale='de_DE')[1]
     u'J'
 
@@ -282,17 +281,17 @@ def get_timezone_gmt(datetime=None, width='long', locale=LC_TIME):
     u'GMT+00:00'
 
     >>> tz = get_timezone('America/Los_Angeles')
-    >>> dt = tz.localize(datetime(2007, 4, 1, 15, 30))
+    >>> dt = datetime(2007, 4, 1, 15, 30, tzinfo=tz)
     >>> get_timezone_gmt(dt, locale='en')
-    u'GMT-07:00'
+    u'GMT-08:00'
     >>> get_timezone_gmt(dt, 'short', locale='en')
-    u'-0700'
+    u'-0800'
 
     The long format depends on the locale, for example in France the acronym
     UTC string is used instead of GMT:
 
     >>> get_timezone_gmt(dt, 'long', locale='fr_FR')
-    u'UTC-07:00'
+    u'UTC-08:00'
 
     .. versionadded:: 0.9
 
@@ -320,14 +319,14 @@ def get_timezone_gmt(datetime=None, width='long', locale=LC_TIME):
 
 
 def get_timezone_location(dt_or_tzinfo=None, locale=LC_TIME):
-    u"""Return a representation of the given timezone using "location format".
+    """Return a representation of the given timezone using "location format".
 
     The result depends on both the local display name of the country and the
     city associated with the time zone:
 
     >>> tz = get_timezone('America/St_Johns')
-    >>> print(get_timezone_location(tz, locale='de_DE'))
-    Kanada (St. John’s) Zeit
+    >>> get_timezone_location(tz, locale='de_DE')
+    u"Kanada (St. John's) Zeit"
     >>> tz = get_timezone('America/Mexico_City')
     >>> get_timezone_location(tz, locale='de_DE')
     u'Mexiko (Mexiko-Stadt) Zeit'
@@ -582,7 +581,7 @@ def format_datetime(datetime=None, format='medium', tzinfo=None,
 
     >>> format_datetime(dt, 'full', tzinfo=get_timezone('Europe/Paris'),
     ...                 locale='fr_FR')
-    u'dimanche 1 avril 2007 17:30:00 heure d\u2019\xe9t\xe9 d\u2019Europe centrale'
+    u'dimanche 1 avril 2007 17:30:00 heure avanc\xe9e d\u2019Europe centrale'
     >>> format_datetime(dt, "yyyy.MM.dd G 'at' HH:mm:ss zzz",
     ...                 tzinfo=get_timezone('US/Eastern'), locale='en')
     u'2007.04.01 AD at 11:30:00 EDT'
@@ -640,7 +639,7 @@ def format_time(time=None, format='medium', tzinfo=None, locale=LC_TIME):
     >>> tzinfo = get_timezone('Europe/Paris')
     >>> t = tzinfo.localize(t)
     >>> format_time(t, format='full', tzinfo=tzinfo, locale='fr_FR')
-    u'15:30:00 heure d\u2019\xe9t\xe9 d\u2019Europe centrale'
+    u'15:30:00 heure avanc\xe9e d\u2019Europe centrale'
     >>> format_time(t, "hh 'o''clock' a, zzzz", tzinfo=get_timezone('US/Eastern'),
     ...             locale='en')
     u"09 o'clock AM, Eastern Daylight Time"
@@ -661,7 +660,7 @@ def format_time(time=None, format='medium', tzinfo=None, locale=LC_TIME):
     >>> t = time(15, 30)
     >>> format_time(t, format='full', tzinfo=get_timezone('Europe/Paris'),
     ...             locale='fr_FR')
-    u'15:30:00 heure normale d\u2019Europe centrale'
+    u'15:30:00 heure normale de l\u2019Europe centrale'
     >>> format_time(t, format='full', tzinfo=get_timezone('US/Eastern'),
     ...             locale='en_US')
     u'3:30:00 PM Eastern Standard Time'
@@ -706,7 +705,7 @@ TIMEDELTA_UNITS = (
 
 
 def format_timedelta(delta, granularity='second', threshold=.85,
-                     add_direction=False, format='long',
+                     add_direction=False, format='medium',
                      locale=LC_TIME):
     """Return a time delta according to the rules of the given locale.
 
@@ -735,16 +734,9 @@ def format_timedelta(delta, granularity='second', threshold=.85,
     the user if the date is in the past or in the future:
 
     >>> format_timedelta(timedelta(hours=1), add_direction=True, locale='en')
-    u'in 1 hour'
+    u'In 1 hour'
     >>> format_timedelta(timedelta(hours=-1), add_direction=True, locale='en')
     u'1 hour ago'
-
-    The format parameter controls how compact or wide the presentation is:
-
-    >>> format_timedelta(timedelta(hours=3), format='short', locale='en')
-    u'3 hrs'
-    >>> format_timedelta(timedelta(hours=3), format='narrow', locale='en')
-    u'3h'
 
     :param delta: a ``timedelta`` object representing the time difference to
                   format, or the delta in seconds as an `int` value
@@ -758,34 +750,25 @@ def format_timedelta(delta, granularity='second', threshold=.85,
                           positive timedelta will include the information about
                           it being in the future, a negative will be information
                           about the value being in the past.
-    :param format: the format, can be "narrow", "short" or "long". (
-                   "medium" is deprecated, currently converted to "long" to
-                   maintain compatibility)
+    :param format: the format (currently only "medium" and "short" are supported)
     :param locale: a `Locale` object or a locale identifier
     """
-    if format not in ('narrow', 'short', 'medium', 'long'):
-        raise TypeError('Format must be one of "narrow", "short" or "long"')
-    if format == 'medium':
-        warnings.warn('"medium" value for format param of format_timedelta'
-                      ' is deprecated. Use "long" instead',
-                      category=DeprecationWarning)
-        format = 'long'
+    if format not in ('short', 'medium'):
+        raise TypeError('Format can only be one of "short" or "medium"')
     if isinstance(delta, timedelta):
         seconds = int((delta.days * 86400) + delta.seconds)
     else:
         seconds = delta
     locale = Locale.parse(locale)
 
-    def _iter_patterns(a_unit):
+    def _iter_choices(unit):
         if add_direction:
-            unit_rel_patterns = locale._data['date_fields'][a_unit]
             if seconds >= 0:
-                yield unit_rel_patterns['future']
+                yield unit + '-future'
             else:
-                yield unit_rel_patterns['past']
-        a_unit = 'duration-' + a_unit
-        yield locale._data['unit_patterns'].get(a_unit + ':' + format)
-        yield locale._data['unit_patterns'].get(a_unit)
+                yield unit + '-past'
+        yield unit + ':' + format
+        yield unit
 
     for unit, secs_per_unit in TIMEDELTA_UNITS:
         value = abs(seconds) / secs_per_unit
@@ -795,7 +778,8 @@ def format_timedelta(delta, granularity='second', threshold=.85,
             value = int(round(value))
             plural_form = locale.plural_form(value)
             pattern = None
-            for patterns in _iter_patterns(unit):
+            for choice in _iter_choices(unit):
+                patterns = locale._data['unit_patterns'].get(choice)
                 if patterns is not None:
                     pattern = patterns[plural_form]
                     break

@@ -98,8 +98,7 @@ def get_territory_currencies(territory, start_date=None, end_date=None,
 
     >>> get_territory_currencies('US')
     ['USD']
-    >>> get_territory_currencies('US', tender=False, non_tender=True,
-    ...                          start_date=date(2014, 1, 1))
+    >>> get_territory_currencies('US', tender=False, non_tender=True)
     ['USN', 'USS']
 
     .. versionadded:: 2.0
@@ -135,10 +134,6 @@ def get_territory_currencies(territory, start_date=None, end_date=None,
 
     result = []
     for currency_code, start, end, is_tender in curs:
-        if start:
-            start = date_(*start)
-        if end:
-            end = date_(*end)
         if ((is_tender and tender) or \
             (not is_tender and non_tender)) and _is_active(start, end):
             if include_details:
@@ -262,7 +257,7 @@ def format_currency(number, currency, format=None, locale=LC_NUMERIC):
     >>> format_currency(1099.98, 'USD', locale='en_US')
     u'$1,099.98'
     >>> format_currency(1099.98, 'USD', locale='es_CO')
-    u'US$1.099,98'
+    u'1.099,98\\xa0US$'
     >>> format_currency(1099.98, 'EUR', locale='de_DE')
     u'1.099,98\\xa0\\u20ac'
 

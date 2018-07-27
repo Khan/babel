@@ -567,6 +567,9 @@ def extract_javascript(fileobj, keywords, comment_tags, options):
     last_token = None
     call_stack = -1
 
+    # NOTE(djf): function invocations never follow these JavaScript keywords
+    DECLARATION_KEYWORDS = {"function", "class", "var", "let", "const"}
+
     # NOTE(jeresig): Custom functionality added.
     # setting the option of 'messages_only' to True and this method
     # will yield a tuple of messages and their file position
@@ -579,8 +582,10 @@ def extract_javascript(fileobj, keywords, comment_tags, options):
         # NOTE(jeresig): Made it so that ( or [ or { all increase
         # the call stack (to avoid capturing things contained within
         # these particular constructs).
+        # NOTE(djf): But only increment callstack from -1 to 0 on open paren
+        # Otherwise `_[` looks like a function call instead of array access.
         if token.type == 'operator' and token.value in ('{', '[', '('):
-            if funcname:
+            if funcname and (token.value == '(' or call_stack >= 0):
                 message_lineno = token.lineno
                 call_stack += 1
 
@@ -699,7 +704,7 @@ def extract_javascript(fileobj, keywords, comment_tags, options):
         elif call_stack == -1 and token.type == 'name' and \
              token.value in keywords and \
              (last_token is None or last_token.type != 'name' or
-              last_token.value != 'function'):
+              last_token.value not in DECLARATION_KEYWORDS):
             funcname = token.value
 
         last_token = token
